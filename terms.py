@@ -108,9 +108,13 @@ def clean_table(strip_colons, remove_multi_dots, remove_trailing_dots):
 # Only two required inputs, in_csv and out_csv
 # It is NOT recommended to change the other flags
 def normalization_program(in_csv, out_csv, highest_level=15, distinct_normal=True, strip_colons=False, remove_multi_dots=True, remove_trailing_dots=True):
+    print("Populating Table from CSV...")
     populate_originals(in_csv)
+    print("Populating Term Table...")
     populate_terms(highest_level)
+    print("Normalizing Terms...")
     normalize(distinct_normal, highest_level)
+    print("Cleaning up...")
     clean_table(strip_colons, remove_multi_dots, remove_trailing_dots)
     pd.read_sql(sql='SELECT * FROM Terms ORDER BY  original DESC, freq ASC, break_level ASC', con=conn).to_csv(out_csv, index=False, sep=',', quoting=csv.QUOTE_NONNUMERIC, encoding='utf-8-sig')
 

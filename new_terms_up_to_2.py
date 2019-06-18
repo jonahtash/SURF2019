@@ -10,8 +10,7 @@ cur = conn.cursor()
 # Create 4 tables Terms, FragmentsLT3(Fragments less than 3), Type1SearchTerms, Type2SearchTerms
 cur.execute('CREATE TABLE Terms (full_normalized text, original text, ID text)')
 cur.execute('CREATE TABLE FragmentsLT3 (randr_fragment text, original text, ID text)')
-cur.execute('CREATE TABLE Type1SearchTerms (randr_fragment text, randr_fragment_broken text, term_randr_found text, ID text)')
-cur.execute('CREATE TABLE Type2SearchTerms (randr_fragment text, randr_fragment_broken text, ID text)')
+cur.execute('CREATE TABLE TypeSearchTerms (randr_fragment text, randr_fragment_broken text, term_randr_found text, ID text)')
 
 cur.execute('CREATE INDEX idx_terms ON Terms (original, ID)')
 cur.execute('CREATE INDEX idx_frag ON FragmentsLT3 (original, ID)')
@@ -32,7 +31,7 @@ def _make_int(l):
 def _rem_chars(s, l):
     if l < 0:
         return s
-    chars = ['-', '.', '=', '+', '/', ';', '*']
+    chars = ['-', '.', '=', '+', '/', ';', '*', '_', ':']
     pieces = s.split(':'+str(l)+':')
     ret = []
     for piece in pieces:
@@ -78,7 +77,7 @@ def make_type_1():
     cur.execute('SELECT DISTINCT randr_fragment FROM FragmentsLT3')
     for row in cur.fetchall():
         pieces = re.split(r':[1-9][0-9]*:', row[0])
-        cur.execute('INSERT INTO Type1SearchTerms SELECT ?, ?, full_normalized, ID FROM Terms WHERE '+_make_like(pieces), (row[0], ' '.join(pieces)))
+        cur.execute('INSERT INTO TypeSearchTerms SELECT ?, ?, full_normalized, ID FROM Terms WHERE '+_make_like(pieces), (row[0], ' '.join(pieces)))
 
 # Populates table Type2SearchTerms with type 2 search terms
 # Type 2 search terms recognize documents that contain a given set of search terms in any given order
@@ -94,9 +93,9 @@ def make_type_2():
         statement = _make_int(pieces)
         cur.execute(statement)
         for ID in cur.fetchall():
-            cur.execute('INSERT INTO Type2SearchTerms VALUES (?, ?, ?)', (row[0], ' '.join(pieces), ID[0]))
+            cur.execute('INSERT INTO TypeSearchTerms VALUES (?, ?, ?, ?)', (row[0], ' '.join(pieces), '', ID[0]))
 
-def new_terms_program(in_csv, out_csv_type_0, out_csv_type_1, out_csv_type_2):
+def new_terms_program(in_csv, out_csv_type_0, out_csv_type_1):
     print("Populating Terms table...")
     populate_terms(in_csv)
     print("DONE")
@@ -110,10 +109,10 @@ def new_terms_program(in_csv, out_csv_type_0, out_csv_type_1, out_csv_type_2):
     make_type_2()
     print("Outputting to CSVs...")
     pd.read_sql(sql='SELECT DISTINCT * FROM FragmentsLT3', con=conn).to_csv(out_csv_type_0, index=False, sep=',', quoting=csv.QUOTE_NONNUMERIC, encoding='utf-8-sig')
-    pd.read_sql(sql='SELECT DISTINCT * FROM Type1SearchTerms', con=conn).to_csv(out_csv_type_1, index=False, sep=',', quoting=csv.QUOTE_NONNUMERIC, encoding='utf-8-sig')
-    pd.read_sql(sql='SELECT DISTINCT * FROM Type2SearchTerms', con=conn).to_csv(out_csv_type_2, index=False, sep=',', quoting=csv.QUOTE_NONNUMERIC, encoding='utf-8-sig')
+    pd.read_sql(sql='SELECT DISTINCT * FROM TypeSearchTerms', con=conn).to_csv(out_csv_type_1, index=False, sep=',', quoting=csv.QUOTE_NONNUMERIC, encoding='utf-8-sig')
+    #pd.read_sql(sql='SELECT DISTINCT * FROM Type2SearchTerms', con=conn).to_csv(out_csv_type_2, index=False, sep=',', quoting=csv.QUOTE_NONNUMERIC, encoding='utf-8-sig')
     print("DONE")
     print("FINISHED")
 
 if __name__ == '__main__':
-    new_terms_program('terms_full_set.csv', 'type_zero.csv', 'type_one.csv', 'type_two.csv')
+    new_terms_program('terms_full_set.csv', 'type_zero.csv', 'types_one_two.csv')
