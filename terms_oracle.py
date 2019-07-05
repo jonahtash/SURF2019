@@ -9,8 +9,9 @@ import atexit
 # LAPTOP-2QA6D1K8\MSSQL
 conn = cx_Oracle.connect('username/password@localhost')
 cur = conn.cursor()
-atexit.register(conn.commit)
-atexit.register(conn.close)
+cur = conn.cursor()
+#atexit.register(conn.commit)
+#atexit.register(conn.close)
 # Create 2 tables, Originals and Terms
 # 4 Coluns: Originals
 # 11 Columns: Terms
@@ -41,19 +42,18 @@ def _no_dups(s, level):
 
 def populate_in_table(in_table):
     cur.execute('DROP TABLE IF EXISTS '+in_table)
-    cur.execute('CREATE TABLE '+in_table+' (terms varchar(900), sentence varchar(900), max_level INTEGER, ID varchar(900))')
-    for row in csv.reader(open('table.csv', 'r')):
+    cur.execute('CREATE TABLE '+in_table+' (terms varchar(900), sentence varchar(900), max_level INTEGER, ID varchar(900), snippet varchar(900))')
+    for row in csv.reader(open('table_small.csv', 'r')):
         delims = re.findall(r':[0-9]+:', row[0])
         if not delims:
             delims = [':0:']
         max_level = max(set(delims), key = lambda s: int(s[1:-1]))
-        cur.execute('INSERT INTO '+in_table+' VALUES (?, ?, ?, ?)', (row[0], row[2], int(max_level[1:-1]), row[3]))
+        cur.execute('INSERT INTO '+in_table+' VALUES (?, ?, ?, ?, ?)', (row[0], row[2], int(max_level[1:-1]), row[3], row[1]))
 
     
 def populate_terms(in_table, out_table, highest_level):
-    cur.execute('DROP TABLE IF EXISTS '+out_table)
-    cur.execute('CREATE TABLE '+out_table+' (piece varchar(900), alphabetical varchar(900), normalized_piece varchar(900), freq INTEGER, norm_freq INTEGER, break_level INTEGER, type INTEGER, original varchar(900),\
-            full_normalized varchar(900), sentence varchar(900), ID varchar(900))')
+    cur.execute('CREATE TABLE "'+out_table+'" (piece varchar(900), alphabetical varchar(900), normalized_piece varchar(900), freq INTEGER, norm_freq INTEGER, break_level INTEGER, type INTEGER, original varchar(900),\
+            full_normalized varchar(900), snippet varchar(900), sentence varchar(900), ID varchar(900)); exception when others then if SQLCODE = -955 then null; else raise; end if;')
     for i in range(highest_level, 0, -1):
         ias = str(i)
         cur.execute('SELECT * FROM '+in_table+' WHERE max_level = '+ias)
@@ -61,7 +61,7 @@ def populate_terms(in_table, out_table, highest_level):
             pieces = row[0].split(':'+ias+':')
             if len(pieces) > 1:
                 for piece in pieces:
-                    cur.execute('INSERT INTO '+out_table+' VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (':'+piece+':', ':'+piece+':', ':'+piece+':', 0, 0, i, 0, ':'+row[0]+':', ':'+row[0]+':', row[1], row[3]))
+                    cur.execute('INSERT INTO '+out_table+' VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (':'+piece+':', ':'+piece+':', ':'+piece+':', 0, 0, i, 0, ':'+row[0]+':', ':'+row[0]+':', row[4], row[1], row[3]))
         cur.execute('SELECT * FROM '+out_table+' WHERE break_level = '+str(i+1))
         for row in cur.fetchall():
             pieces = row[0].split(':'+ias+':')
@@ -69,7 +69,7 @@ def populate_terms(in_table, out_table, highest_level):
                 for piece in pieces:
                     if(len(piece) > 0):
                         piece = piece.strip(':')
-                        cur.execute('INSERT INTO '+out_table+' VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (':'+piece+':', ':'+piece+':', ':'+piece+':', 0, 0, i, 0, row[7], row[8], row[9], row[10]))
+                        cur.execute('INSERT INTO '+out_table+' VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (':'+piece+':', ':'+piece+':', ':'+piece+':', 0, 0, i, 0, row[7], row[8], row[9], row[10], row[11]))
 
 def normalize(out_table, distinct_normal, highest_level):
     # Normalize Data
@@ -131,4 +131,4 @@ def normalization_program(in_table, out_table, highest_level=15, distinct_normal
     conn.close()
     
 if __name__ == '__main__':
-    normalization_program('Originals', 'Terms')
+    normalization_program('OriginalsSmall', 'TermsSmall')

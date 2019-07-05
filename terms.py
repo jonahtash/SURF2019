@@ -10,10 +10,9 @@ cur = conn.cursor()
 # Create 2 tables, Originals and Terms
 # 4 Coluns: Originals
 # 11 Columns: Terms
-cur.execute('CREATE TABLE Originals (terms text, sentence text, max_level INTEGER, ID text)')
+cur.execute('CREATE TABLE Originals (terms text, sentence text, max_level INTEGER, ID text, snippet text)')
 cur.execute('CREATE TABLE Terms (piece text, alphabetical text, normalized_piece text, freq INTEGER, norm_freq INTEGER, break_level INTEGER, type INTEGER, original text,\
-            full_normalized text, sentence text, ID text)')
-cur.execute('CREATE TABLE TermsMulti (piece text, type INTEGER, original text, full_normalized text, sentence1 text, sentence2 text, ID text)')
+            full_normalized text, snippet text, sentence text, ID text)')
 cur.execute('CREATE INDEX idx ON Terms (alphabetical, break_level)')
 
 
@@ -40,7 +39,7 @@ def populate_originals(in_csv):
         if not delims:
             delims = [':0:']
         max_level = max(set(delims), key = lambda s: int(s[1:-1]))
-        cur.execute('INSERT INTO Originals VALUES (?, ?, ?, ?)', (row[0], row[2], int(max_level[1:-1]), row[3]))
+        cur.execute('INSERT INTO Originals VALUES (?, ?, ?, ?, ?)', (row[0], row[2], int(max_level[1:-1]), row[3], row[1])))
 
 def populate_terms(highest_level):
     for i in range(highest_level, 0, -1):
@@ -50,7 +49,7 @@ def populate_terms(highest_level):
             pieces = row[0].split(':'+ias+':')
             if len(pieces) > 1:
                 for piece in pieces:
-                    cur.execute('INSERT INTO Terms VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (':'+piece+':', ':'+piece+':', ':'+piece+':', 0, 0, i, 0, ':'+row[0]+':', ':'+row[0]+':', row[1], row[3]))
+                    cur.execute(cur.execute('INSERT INTO Terms VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (':'+piece+':', ':'+piece+':', ':'+piece+':', 0, 0, i, 0, ':'+row[0]+':', ':'+row[0]+':', row[4], row[1], row[3])))
         cur.execute('SELECT * FROM Terms WHERE break_level = '+str(i+1))
         for row in cur.fetchall():
             pieces = row[0].split(':'+ias+':')
@@ -58,7 +57,8 @@ def populate_terms(highest_level):
                 for piece in pieces:
                     if(len(piece) > 0):
                         piece = piece.strip(':')
-                        cur.execute('INSERT INTO Terms VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (':'+piece+':', ':'+piece+':', ':'+piece+':', 0, 0, i, 0, row[7], row[8], row[9], row[10]))
+                        cur.execute('INSERT INTO Terms VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', (':'+piece+':', ':'+piece+':', ':'+piece+':', 0, 0, i, 0, row[7], row[8], row[9], row[10], row[11]))
+
 
 def normalize(distinct_normal, highest_level):
     # Normalize Data
@@ -116,7 +116,7 @@ def normalization_program(in_csv, out_csv, highest_level=15, distinct_normal=Tru
     normalize(distinct_normal, highest_level)
     print("Cleaning up...")
     clean_table(strip_colons, remove_multi_dots, remove_trailing_dots)
-    pd.read_sql(sql='SELECT * FROM Terms ORDER BY  original DESC, freq ASC, break_level ASC', con=conn).to_csv(out_csv, index=False, sep=',', quoting=csv.QUOTE_NONNUMERIC, encoding='utf-8-sig')
+    pd.read_sql(sql='SELECT * FROM Terms ORDER BY original DESC, freq ASC, break_level ASC', con=conn).to_csv(out_csv, index=False, sep=',', quoting=csv.QUOTE_NONNUMERIC, encoding='utf-8-sig')
 
 if __name__ == '__main__':
-    normalization_program('table.csv', 'terms_full_set.csv')
+    normalization_program('table_small.csv', 'terms_small.csv')
